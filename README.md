@@ -53,3 +53,17 @@ WeatherApp/
   Views/        Apple-Weather-style SwiftUI screens and cards
 WeatherAppTests/
 ```
+
+## Web version
+
+`docs/index.html` is a standalone, mobile-friendly web version of the same app with the same
+daytime-only precipitation rule and nearest-station card. It needs no build step.
+
+- Instant preview from this branch:
+  https://raw.githack.com/bdnorman/scratch_mobile/claude/ios-weather-app-daytime-precip-234tc4/docs/index.html
+- Permanent URL: enable GitHub Pages (repository Settings, Pages, "Deploy from a branch",
+  pick this branch and the `/docs` folder). The page is then served at
+  https://bdnorman.github.io/scratch_mobile/
+
+Open it in Safari on your iPhone, allow location access, and use Share, "Add to Home Screen"
+to get a full-screen app icon.
