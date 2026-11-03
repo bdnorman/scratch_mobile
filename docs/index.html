@@ -54,6 +54,17 @@
   .sky-storm      { --sky-top: #242938; --sky-bottom: #52576b; }
   .sky-fog        { --sky-top: #6b788c; --sky-bottom: #9ea8b8; }
 
+  /* Black mode: true black for OLED with a faint wash of the sky colour at the top. Follows the
+     system dark setting unless the viewer picks Sky or Black in the locations sheet. */
+  @media (prefers-color-scheme: dark) {
+    html:not([data-appearance="sky"]) { --card: rgba(255, 255, 255, 0.11); --card-line: rgba(255, 255, 255, 0.2); --black: 1; }
+    html:not([data-appearance="sky"]) body::before { background: #000; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 28%, #000) 0%, #000 45%); }
+    html:not([data-appearance="sky"]) .bottombar { background: rgba(0, 0, 0, 0.65); }
+  }
+  html[data-appearance="black"] { --card: rgba(255, 255, 255, 0.11); --card-line: rgba(255, 255, 255, 0.2); --black: 1; }
+  html[data-appearance="black"] body::before { background: #000; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 28%, #000) 0%, #000 45%); }
+  html[data-appearance="black"] .bottombar { background: rgba(0, 0, 0, 0.65); }
+
   .screen {
     max-width: 560px;
     margin: 0 auto;
@@ -162,6 +173,8 @@
   .hour .t { font-size: 19px; }
 
   .day {
+    width: 100%;
+    background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
     display: grid;
     grid-template-columns: 58px 44px 40px 1fr 40px;
     align-items: center;
@@ -172,7 +185,8 @@
     font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
-  .day:first-of-type { border-top: 0; }
+  .day:first-child { border-top: 0; }
+  .day:active { background: rgba(255,255,255,0.08); }
   .day .icon { text-align: center; font-size: 22px; line-height: 24px; }
   .day .pop { display: block; font-size: 11px; font-weight: 600; color: var(--rain); text-align: center; line-height: 13px; }
   .day .lo { color: var(--fg-dim); text-align: right; }
@@ -290,6 +304,45 @@
   .seg { display: flex; gap: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 3px; }
   .seg button { flex: 1; font: inherit; font-weight: 600; color: #fff; background: none; border: 0; border-radius: 8px; padding: 8px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: rgba(255,255,255,0.22); }
+
+  .modal {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal-panel {
+    width: 100%; max-width: 560px; max-height: 92%;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+    border-radius: 18px 18px 0 0;
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  html[data-appearance="black"] .modal-panel { background: #0a0a0a; }
+  @media (prefers-color-scheme: dark) { html:not([data-appearance="sky"]) .modal-panel { background: #0a0a0a; } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .modal-head h2 { margin: 0; font-size: 20px; font-weight: 700; }
+  .modal-head .btn { padding: 8px 14px; }
+  .stat-row { display: flex; gap: 16px; align-items: flex-start; }
+  .stat .v { font-size: 40px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 15px; font-weight: 500; }
+  .stat.dim { color: rgba(255,255,255,0.7); }
+  .stat-row .sep { width: 1px; align-self: stretch; background: var(--card-line); }
+  .chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; position: relative; }
+  .chart::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 30px); pointer-events: none; }
+  .chart .b { flex: 1; min-width: 0; border-radius: 2px 2px 0 0; background: rgba(255,255,255,0.3); min-height: 2px; }
+  .chart .b.day { background: var(--rain); }
+  .chart-axis { display: flex; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 6px; }
+  .chart-axis span { flex: 1; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: rgba(255,255,255,0.78); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: rgba(255,255,255,0.3); }
+  .legend i.day { background: var(--rain); }
+  .wet { display: grid; grid-template-columns: 64px 28px 48px 1fr 20px; gap: 6px; align-items: center; padding: 7px 0; border-top: 1px solid var(--card-line); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .wet:first-child { border-top: 0; }
+  .wet .p { text-align: right; }
+  .wet .p.day { color: var(--rain); }
+  .wet .a { text-align: right; color: rgba(255,255,255,0.85); }
+  .wet .n { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; }
 </style>
 </head>
 <body class="sky-clearDay">
@@ -328,7 +381,7 @@
 
     <footer class="attribution">
       Forecast by <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. Station data by NOAA.<br>
-      Daily chance of precipitation is the highest hourly value between sunrise and sunset.
+      Daily chance of precipitation is the highest hourly value between sunrise and sunset. Tap a day for the hourly breakdown.
     </footer>
   </div>
 </main>
@@ -370,10 +423,21 @@
           <button id="unit-f" aria-pressed="true">°F, mph, mi</button>
           <button id="unit-c" aria-pressed="false">°C, km/h, km</button>
         </div>
+        <div class="group-title" style="padding:14px 0 8px;">Background</div>
+        <div class="seg" id="appearance-seg">
+          <button data-appearance="automatic" aria-pressed="true">Automatic</button>
+          <button data-appearance="sky" aria-pressed="false">Sky</button>
+          <button data-appearance="black" aria-pressed="false">Black</button>
+        </div>
+        <div class="group-title" style="padding:8px 0 0; text-transform:none; letter-spacing:0;">Automatic shows the sky in light mode and black in dark mode.</div>
       </div>
     </div>
     <div class="group" id="results" hidden></div>
   </div>
+</div>
+
+<div class="modal" id="day-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-panel" id="modal-panel"></div>
 </div>
 
 <script>
@@ -406,6 +470,17 @@
     get pressureLabel() { return this.imperial ? 'inHg' : 'hPa'; }
   };
   const deg = v => Math.round(v) + '°';
+  units.precipParam = () => unitSystem === 'imperial' ? 'inch' : 'mm';
+  units.precip = v => unitSystem === 'imperial' ? v.toFixed(2) + ' in' : v.toFixed(1) + ' mm';
+
+  // ---------- Appearance ----------
+  let appearance = store.get('weather.appearance', 'automatic');
+  function applyAppearance() {
+    if (appearance === 'automatic') delete document.documentElement.dataset.appearance;
+    else document.documentElement.dataset.appearance = appearance;
+    document.querySelectorAll('#appearance-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.appearance === appearance)));
+  }
+  applyAppearance();
 
   // ---------- Conditions ----------
   const CONDITIONS = {
@@ -486,10 +561,10 @@
     const q = new URLSearchParams({
       latitude: location.latitude.toFixed(4), longitude: location.longitude.toFixed(4),
       current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure',
-      hourly: 'temperature_2m,precipitation_probability,weather_code,is_day,visibility,dew_point_2m,uv_index',
-      daily: 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max',
+      hourly: 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day,visibility,dew_point_2m,uv_index',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum',
       timezone: 'auto', forecast_days: '10', timeformat: 'unixtime',
-      temperature_unit: units.temperatureParam, wind_speed_unit: units.windParam
+      temperature_unit: units.temperatureParam, wind_speed_unit: units.windParam, precipitation_unit: units.precipParam()
     });
     const r = await fetchJSON('https://api.open-meteo.com/v1/forecast?' + q);
     return buildReport(r, location);
@@ -501,7 +576,7 @@
     const at = (arr, i) => (arr && i < arr.length) ? arr[i] : null;
     const hourly = h.time.map((t, i) => ({
       time: t, temperature: at(h.temperature_2m, i), code: at(h.weather_code, i) ?? 3,
-      pop: at(h.precipitation_probability, i), isDay: (at(h.is_day, i) ?? 1) === 1
+      pop: at(h.precipitation_probability, i), amount: at(h.precipitation, i), isDay: (at(h.is_day, i) ?? 1) === 1
     })).filter(x => x.temperature != null);
     const samples = h.time.map((t, i) => ({ start: t, probability: at(h.precipitation_probability, i) }));
     const daily = d.time.map((t, i) => {
@@ -510,8 +585,8 @@
       const allDay = rangeMax(samples, start, end) ?? at(d.precipitation_probability_max, i);
       const daytime = (sunrise != null && sunset != null) ? daytimeMax(samples, sunrise, sunset) : allDay;
       return {
-        time: t, code: at(d.weather_code, i) ?? 3, high: at(d.temperature_2m_max, i), low: at(d.temperature_2m_min, i),
-        sunrise, sunset, uvMax: at(d.uv_index_max, i), daytimePop: daytime, allDayPop: allDay
+        time: t, end, code: at(d.weather_code, i) ?? 3, high: at(d.temperature_2m_max, i), low: at(d.temperature_2m_min, i),
+        sunrise, sunset, uvMax: at(d.uv_index_max, i), daytimePop: daytime, allDayPop: allDay, precipSum: at(d.precipitation_sum, i)
       };
     }).filter(x => x.high != null && x.low != null);
     const c = r.current;
@@ -718,7 +793,10 @@
     const todayKey = r.today ? dayKey(r.today.time, r.tz) : '';
     r.daily.forEach(d => {
       const isToday = dayKey(d.time, r.tz) === todayKey;
-      const row = el('div', 'day');
+      const row = el('button', 'day');
+      row.type = 'button';
+      row.setAttribute('aria-label', (isToday ? 'Today' : fmtWeekday(d.time, r.tz)) + ', precipitation details');
+      row.addEventListener('click', () => openDay(r, d));
       row.appendChild(el('span', null, isToday ? 'Today' : fmtWeekday(d.time, r.tz)));
       const ic = el('span', 'icon', conditionIcon(d.code, true));
       if (d.daytimePop > 0) ic.appendChild(el('span', 'pop', d.daytimePop + '%'));
@@ -853,6 +931,92 @@
     box.appendChild(el('div', 'source', 'Source: ' + s.source));
   }
 
+  // ---------- Day detail ----------
+  function isDaylight(d, h) {
+    if (d.sunrise == null || d.sunset == null) return true;
+    return h.time < d.sunset && h.time + 3600 > d.sunrise;
+  }
+  function openDay(r, d) {
+    const panel = $('modal-panel'); panel.innerHTML = '';
+    const hours = r.hourly.filter(h => h.time >= d.time && h.time < d.end);
+    const daylight = hours.filter(h => isDaylight(d, h));
+
+    const head = el('div', 'modal-head');
+    const title = el('h2', null, fmt(d.time, r.tz, { weekday: 'long', month: 'short', day: 'numeric' })); title.id = 'modal-title';
+    const done = el('button', 'btn', 'Done'); done.addEventListener('click', closeDay);
+    head.appendChild(title); head.appendChild(done); panel.appendChild(head);
+
+    // Chance summary
+    const c1 = el('section', 'card');
+    c1.appendChild(el('h2', null, 'Chance of Precipitation'));
+    const stats = el('div', 'stat-row');
+    const s1 = el('div', 'stat'); s1.appendChild(el('div', 'v', d.daytimePop != null ? d.daytimePop + '%' : '--')); s1.appendChild(el('div', 'l', 'Daytime max'));
+    const s2 = el('div', 'stat dim'); s2.appendChild(el('div', 'v', d.allDayPop != null ? d.allDayPop + '%' : '--')); s2.appendChild(el('div', 'l', 'Full day max'));
+    stats.appendChild(s1); stats.appendChild(el('div', 'sep')); stats.appendChild(s2); c1.appendChild(stats);
+    let windowText;
+    if (d.sunrise != null && d.sunset != null) {
+      windowText = 'Daylight runs from ' + fmtClock(d.sunrise, r.tz) + ' to ' + fmtClock(d.sunset, r.tz) + '.';
+      let peak = null; for (const h of daylight) if (h.pop != null && (!peak || h.pop > peak.pop)) peak = h;
+      if (peak && peak.pop > 0) windowText += ' The daytime peak is ' + peak.pop + '% around ' + fmtHour(peak.time, r.tz) + '.';
+    } else windowText = 'No sunrise or sunset on this day, so the full day is used.';
+    const wn = el('div', 'note', windowText); wn.style.marginTop = '8px'; wn.style.fontSize = '12px'; wn.style.color = 'rgba(255,255,255,0.78)';
+    c1.appendChild(wn); panel.appendChild(c1);
+
+    // Hourly chart
+    const c2 = el('section', 'card');
+    c2.appendChild(el('h2', null, 'Hourly Chance'));
+    const chart = el('div', 'chart');
+    hours.forEach(h => {
+      const b = el('div', 'b' + (isDaylight(d, h) ? ' day' : ''));
+      b.style.height = Math.max(h.pop || 0, 1.5) + '%';
+      b.title = fmtHour(h.time, r.tz) + ': ' + (h.pop ?? 0) + '%';
+      chart.appendChild(b);
+    });
+    c2.appendChild(chart);
+    const axis = el('div', 'chart-axis');
+    for (let i = 0; i < hours.length; i += 6) axis.appendChild(el('span', null, fmtHour(hours[i].time, r.tz)));
+    c2.appendChild(axis);
+    const legend = el('div', 'legend');
+    const l1 = el('span'); l1.appendChild(el('i', 'day')); l1.appendChild(document.createTextNode('Daylight'));
+    const l2 = el('span'); l2.appendChild(el('i')); l2.appendChild(document.createTextNode('Night'));
+    legend.appendChild(l1); legend.appendChild(l2); c2.appendChild(legend);
+    panel.appendChild(c2);
+
+    // Amounts
+    const c3 = el('section', 'card');
+    c3.appendChild(el('h2', null, 'Precipitation Amount'));
+    const sum = list => list.reduce((acc, h) => acc + (h.amount || 0), 0);
+    const a = el('div', 'stat-row');
+    const a1 = el('div', 'stat'); const a1v = el('div', 'v', units.precip(sum(daylight))); a1v.style.fontSize = '22px'; a1.appendChild(a1v); a1.appendChild(el('div', 'note', 'During daylight'));
+    const a2 = el('div', 'stat dim'); const a2v = el('div', 'v', units.precip(d.precipSum != null ? d.precipSum : sum(hours))); a2v.style.fontSize = '22px'; a2.appendChild(a2v); a2.appendChild(el('div', 'note', 'Full day'));
+    a.appendChild(a1); a.appendChild(a2); c3.appendChild(a);
+    const wet = hours.filter(h => (h.amount || 0) > 0 || (h.pop || 0) >= 30);
+    if (!wet.length) {
+      const none = el('div', 'note', 'No precipitation expected at any hour.'); none.style.marginTop = '10px'; c3.appendChild(none);
+    } else {
+      const list = el('div'); list.style.marginTop = '10px';
+      wet.forEach(h => {
+        const row = el('div', 'wet');
+        const dl = isDaylight(d, h);
+        row.appendChild(el('span', null, fmtHour(h.time, r.tz)));
+        row.appendChild(el('span', null, conditionIcon(h.code, h.isDay)));
+        row.appendChild(el('span', 'p' + (dl ? ' day' : ''), (h.pop ?? 0) + '%'));
+        row.appendChild(el('span', 'a', units.precip(h.amount || 0)));
+        row.appendChild(el('span', 'n', dl ? '' : '🌙'));
+        list.appendChild(row);
+      });
+      c3.appendChild(list);
+    }
+    panel.appendChild(c3);
+
+    $('day-modal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    done.focus();
+  }
+  function closeDay() { $('day-modal').hidden = true; document.body.style.overflow = ''; }
+  $('day-modal').addEventListener('click', e => { if (e.target === $('day-modal')) closeDay(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('day-modal').hidden) closeDay(); });
+
   // ---------- Location sheet ----------
   function openSheet() { $('sheet').hidden = false; renderSaved(); $('search').value = ''; showResults(false); }
   function closeSheet() { $('sheet').hidden = true; }
@@ -913,6 +1077,9 @@
     renderSaved();
     report = null; load();
   }
+  document.querySelectorAll('#appearance-seg button').forEach(b => b.addEventListener('click', () => {
+    appearance = b.dataset.appearance; store.set('weather.appearance', appearance); applyAppearance();
+  }));
   $('unit-f').addEventListener('click', () => setUnits('imperial'));
   $('unit-c').addEventListener('click', () => setUnits('metric'));
   $('row-here').addEventListener('click', () => choose(null));

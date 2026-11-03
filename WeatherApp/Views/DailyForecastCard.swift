@@ -3,6 +3,7 @@ import SwiftUI
 struct DailyForecastCard: View {
     let report: WeatherReport
     let units: WeatherUnits
+    var onSelectDay: (DailyForecast) -> Void = { _ in }
 
     private var overallLow: Double { report.daily.map(\.low).min() ?? 0 }
     private var overallHigh: Double { report.daily.map(\.high).max() ?? 1 }
@@ -11,8 +12,15 @@ struct DailyForecastCard: View {
         WeatherCard(title: "\(report.daily.count)-Day Forecast", systemImage: "calendar") {
             VStack(spacing: 0) {
                 ForEach(Array(report.daily.enumerated()), id: \.element.id) { index, day in
-                    row(for: day, isToday: index == 0)
-                        .padding(.vertical, 9)
+                    Button {
+                        onSelectDay(day)
+                    } label: {
+                        row(for: day, isToday: index == 0)
+                            .padding(.vertical, 9)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows the hourly precipitation breakdown")
                     if index < report.daily.count - 1 {
                         Divider().overlay(Color.white.opacity(0.3))
                     }

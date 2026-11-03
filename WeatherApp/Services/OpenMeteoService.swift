@@ -32,6 +32,7 @@ struct OpenMeteoResponse: Decodable {
         let visibility: [Double?]?
         let dewPoint2m: [Double?]?
         let uvIndex: [Double?]?
+        let precipitation: [Double?]?
     }
 
     struct Daily: Decodable {
@@ -43,6 +44,7 @@ struct OpenMeteoResponse: Decodable {
         let sunset: [Int?]
         let uvIndexMax: [Double?]?
         let precipitationProbabilityMax: [Int?]?
+        let precipitationSum: [Double?]?
     }
 }
 
@@ -67,13 +69,14 @@ struct OpenMeteoService {
             URLQueryItem(name: "latitude", value: String(format: "%.4f", location.latitude)),
             URLQueryItem(name: "longitude", value: String(format: "%.4f", location.longitude)),
             URLQueryItem(name: "current", value: "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure"),
-            URLQueryItem(name: "hourly", value: "temperature_2m,precipitation_probability,weather_code,is_day,visibility,dew_point_2m,uv_index"),
-            URLQueryItem(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max"),
+            URLQueryItem(name: "hourly", value: "temperature_2m,precipitation_probability,precipitation,weather_code,is_day,visibility,dew_point_2m,uv_index"),
+            URLQueryItem(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum"),
             URLQueryItem(name: "timezone", value: "auto"),
             URLQueryItem(name: "forecast_days", value: "10"),
             URLQueryItem(name: "timeformat", value: "unixtime"),
             URLQueryItem(name: "temperature_unit", value: units.temperatureParameter),
             URLQueryItem(name: "wind_speed_unit", value: units.windSpeedParameter),
+            URLQueryItem(name: "precipitation_unit", value: units.precipitationParameter),
         ]
 
         let (data, response) = try await session.data(from: components.url!)
@@ -103,6 +106,7 @@ enum WeatherReportBuilder {
                 temperature: temperature,
                 weatherCode: value(response.hourly.weatherCode, at: index) ?? 3,
                 precipitationProbability: value(response.hourly.precipitationProbability, at: index),
+                precipitationAmount: value(response.hourly.precipitation ?? [], at: index),
                 isDay: (value(response.hourly.isDay, at: index) ?? 1) == 1
             )
         }
@@ -134,6 +138,7 @@ enum WeatherReportBuilder {
 
             return DailyForecast(
                 date: dayStart,
+                endDate: dayEnd,
                 weatherCode: value(response.daily.weatherCode, at: index) ?? 3,
                 high: high,
                 low: low,
@@ -141,7 +146,8 @@ enum WeatherReportBuilder {
                 sunset: sunset,
                 uvIndexMax: value(response.daily.uvIndexMax ?? [], at: index),
                 daytimePrecipitationProbability: daytime,
-                allDayPrecipitationProbability: allDay
+                allDayPrecipitationProbability: allDay,
+                precipitationSum: value(response.daily.precipitationSum ?? [], at: index)
             )
         }
 

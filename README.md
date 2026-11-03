@@ -10,6 +10,12 @@ A SwiftUI iPhone app styled after Apple Weather, with two deliberate differences
 2. **Nearest weather station.** A card shows the closest reporting surface station, how far
    away it is, its elevation, when it last reported, and a small map with both points.
 
+Tap any row in the 10-day list for that day's breakdown: daytime max next to full-day max,
+an hour-by-hour chart with daylight hours highlighted, and expected rain amounts.
+
+The background follows the system appearance: the sky gradient in light mode and true black
+in dark mode. Pick Sky or Black explicitly from the locations screen to override.
+
 ## Requirements
 
 - Xcode 16 or newer (the project uses file-system synchronized groups).

@@ -7,6 +7,7 @@ struct LocationListView: View {
     @State private var query = ""
     @State private var results: [WeatherLocation] = []
     @State private var isSearching = false
+    @AppStorage(Appearance.storageKey) private var appearanceRaw = Appearance.automatic.rawValue
 
     private static let geocoding = GeocodingService()
 
@@ -35,6 +36,18 @@ struct LocationListView: View {
                                 viewModel.removeLocations(at: offsets)
                             }
                         }
+                    }
+                    Section {
+                        Picker("Background", selection: $appearanceRaw) {
+                            ForEach(Appearance.allCases) { appearance in
+                                Text(appearance.title).tag(appearance.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    } header: {
+                        Text("Appearance")
+                    } footer: {
+                        Text("Automatic shows the sky gradient in light mode and a black background in dark mode.")
                     }
                 } else {
                     Section {

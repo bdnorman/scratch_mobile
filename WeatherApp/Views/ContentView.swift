@@ -3,13 +3,15 @@ import SwiftUI
 struct ContentView: View {
     @State private var viewModel = WeatherViewModel()
     @State private var showingLocations = false
+    @State private var selectedDay: DailyForecast?
+    @Environment(\.colorScheme) private var systemColorScheme
+    @AppStorage(Appearance.storageKey) private var appearanceRaw = Appearance.automatic.rawValue
 
     var body: some View {
         ZStack {
-            WeatherBackground(style: skyStyle)
+            WeatherBackground(style: skyStyle, black: useBlackBackground)
             content
         }
-        .preferredColorScheme(.dark)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             BottomBar(
                 title: bottomTitle,
@@ -18,11 +20,26 @@ struct ContentView: View {
                 showLocations: { showingLocations = true }
             )
         }
+        // The weather screen is always light text on a dark surface, whatever the system setting.
+        .environment(\.colorScheme, .dark)
         .sheet(isPresented: $showingLocations) {
             LocationListView(viewModel: viewModel)
         }
+        .sheet(item: $selectedDay) { day in
+            if let report = viewModel.report {
+                DayDetailView(report: report, day: day, units: viewModel.units, black: useBlackBackground)
+            }
+        }
         .task {
             await viewModel.loadIfNeeded()
+        }
+    }
+
+    private var useBlackBackground: Bool {
+        switch Appearance(rawValue: appearanceRaw) ?? .automatic {
+        case .black: return true
+        case .sky: return false
+        case .automatic: return systemColorScheme == .dark
         }
     }
 
@@ -51,21 +68,37 @@ struct ContentView: View {
                 chooseLocation: { showingLocations = true }
             )
         case .loaded(let report):
-            WeatherScrollView(report: report, stationState: viewModel.stationState, units: viewModel.units)
-                .refreshable {
-                    await viewModel.refresh()
-                }
+            WeatherScrollView(report: report, stationState: viewModel.stationState, units: viewModel.units) { day in
+                selectedDay = day
+            }
+            .refreshable {
+                await viewModel.refresh()
+            }
         }
     }
 }
 
 struct WeatherBackground: View {
     let style: SkyStyle
+    var black = false
 
     var body: some View {
-        LinearGradient(colors: style.colors, startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.6), value: style.colors)
+        ZStack {
+            if black {
+                // True black for OLED, with a faint wash of the sky colour at the top so conditions still read.
+                Color.black
+                LinearGradient(
+                    colors: [style.colors[0].opacity(0.35), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+            } else {
+                LinearGradient(colors: style.colors, startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.6), value: style.colors)
+        .animation(.easeInOut(duration: 0.3), value: black)
     }
 }
 
@@ -73,6 +106,7 @@ struct WeatherScrollView: View {
     let report: WeatherReport
     let stationState: WeatherViewModel.StationState
     let units: WeatherUnits
+    let onSelectDay: (DailyForecast) -> Void
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -81,7 +115,7 @@ struct WeatherScrollView: View {
                     .padding(.top, 28)
                     .padding(.bottom, 24)
                 HourlyForecastCard(report: report)
-                DailyForecastCard(report: report, units: units)
+                DailyForecastCard(report: report, units: units, onSelectDay: onSelectDay)
                 DetailTilesGrid(report: report, units: units)
                 StationCard(state: stationState, location: report.location, units: units)
                 AttributionFooter()
@@ -154,7 +188,7 @@ struct AttributionFooter: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("Forecast by Open-Meteo. Station data by NOAA.")
-            Text("Daily chance of precipitation is the highest hourly value between sunrise and sunset.")
+            Text("Daily chance of precipitation is the highest hourly value between sunrise and sunset. Tap a day for the hourly breakdown.")
                 .multilineTextAlignment(.center)
         }
         .font(.caption2)
