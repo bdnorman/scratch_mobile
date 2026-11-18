@@ -88,6 +88,7 @@
     padding: 24px;
   }
   .status p { margin: 0; max-width: 32ch; color: rgba(255,255,255,0.9); }
+  .status .slow { font-size: 14px; color: rgba(255,255,255,0.75); }
   .status .big { font-size: 56px; line-height: 1; }
   .spinner {
     width: 28px; height: 28px;
@@ -551,9 +552,21 @@
   }
 
   // ---------- Data ----------
-  async function fetchJSON(url, headers) {
-    const res = await fetch(url, { headers: headers || {} });
-    if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+  // Every request gets a deadline so a stalled connection surfaces as an error instead of an endless spinner.
+  async function fetchJSON(url, headers, timeoutMs) {
+    const host = (() => { try { return new URL(url).host; } catch (e) { return 'the server'; } })();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs || 15000);
+    let res;
+    try {
+      res = await fetch(url, { headers: headers || {}, signal: controller.signal, cache: 'no-store' });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error(host + ' did not respond in time. Check your connection and try again.');
+      throw new Error('Could not reach ' + host + '. Check your connection and try again.');
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!res.ok) throw new Error(host + ' returned an error (' + res.status + '). Try again in a few minutes.');
     return res.json();
   }
 
@@ -611,7 +624,7 @@
   async function awcStation(lat, lon, half) {
     const lonHalf = Math.min(half / Math.max(Math.cos(lat * Math.PI / 180), 0.2), 10);
     const bbox = [Math.max(lat - half, -90), Math.max(lon - lonHalf, -180), Math.min(lat + half, 90), Math.min(lon + lonHalf, 180)].map(v => v.toFixed(3)).join(',');
-    const list = await fetchJSON('https://aviationweather.gov/api/data/metar?format=json&bbox=' + bbox);
+    const list = await fetchJSON('https://aviationweather.gov/api/data/metar?format=json&bbox=' + bbox, null, 10000);
     let best = null;
     for (const m of list) {
       if (typeof m.lat !== 'number' || typeof m.lon !== 'number' || !m.icaoId) continue;
@@ -653,7 +666,7 @@
   }
   async function placeName(lat, lon) {
     try {
-      const r = await fetchJSON('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=en');
+      const r = await fetchJSON('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=en', null, 6000);
       return r.city || r.locality || r.principalSubdivision || null;
     } catch (e) { return null; }
   }
@@ -681,10 +694,24 @@
     s.querySelectorAll('[data-action="retry"]').forEach(b => b.addEventListener('click', () => load()));
     s.querySelectorAll('[data-action="choose"]').forEach(b => b.addEventListener('click', openSheet));
   }
+  let slowTimer = null;
   function showLoading(text) {
-    showStatus('<div class="spinner" role="status" aria-label="Loading"></div><p>' + text + '</p>');
+    showStatus('<div class="spinner" role="status" aria-label="Loading"></div><p>' + text + '</p><p id="slow-note" class="slow" hidden></p>');
+    clearTimeout(slowTimer);
+    slowTimer = setTimeout(() => {
+      const note = $('slow-note');
+      if (!note) return;
+      note.textContent = 'This is taking longer than usual. The forecast service may be slow.';
+      note.hidden = false;
+      const actions = el('div', 'actions');
+      const retry = el('button', 'btn', 'Try Again'); retry.addEventListener('click', () => { report = null; load(); });
+      const choose = el('button', 'btn', 'Choose a City'); choose.addEventListener('click', openSheet);
+      actions.appendChild(retry); actions.appendChild(choose);
+      note.insertAdjacentElement('afterend', actions);
+    }, 8000);
   }
   function showError(message) {
+    clearTimeout(slowTimer);
     showStatus('<div class="big">🌤️</div><p>' + escapeHTML(message) + '</p><div class="actions"><button class="btn" data-action="retry">Try Again</button><button class="btn" data-action="choose">Choose a City</button></div>');
   }
   function escapeHTML(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -705,6 +732,7 @@
       const r = await fetchReport(location);
       if (token !== loadToken) return;
       report = r;
+      clearTimeout(slowTimer);
       render(r);
       loadStation(r, token);
     } catch (e) {
