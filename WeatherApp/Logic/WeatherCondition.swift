@@ -52,6 +52,22 @@ enum WeatherCondition {
     static func isPrecipitation(_ code: Int) -> Bool {
         code >= 51
     }
+
+    /// Open-Meteo sometimes reports snow or freezing codes when the model blend carries a trace of
+    /// frozen precipitation, even at temperatures in the 50s. Above 3 °C that is rain, so remap it.
+    static func normalized(_ code: Int, celsius: Double?) -> Int {
+        guard let celsius, celsius > 3 else { return code }
+        switch code {
+        case 71, 77, 66: return 61
+        case 73: return 63
+        case 75, 67: return 65
+        case 85: return 80
+        case 86: return 82
+        case 56: return 51
+        case 57: return 55
+        default: return code
+        }
+    }
 }
 
 /// Background gradient families that mimic Apple Weather's condition-driven skies.

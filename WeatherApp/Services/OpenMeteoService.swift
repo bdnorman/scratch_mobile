@@ -86,13 +86,13 @@ struct OpenMeteoService {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let decoded = try decoder.decode(OpenMeteoResponse.self, from: data)
-        return try WeatherReportBuilder.makeReport(from: decoded, location: location)
+        return try WeatherReportBuilder.makeReport(from: decoded, location: location, units: units)
     }
 }
 
 /// Turns the raw API arrays into the app's models. Kept separate so it can be unit tested without networking.
 enum WeatherReportBuilder {
-    static func makeReport(from response: OpenMeteoResponse, location: WeatherLocation, fetchedAt: Date = Date()) throws -> WeatherReport {
+    static func makeReport(from response: OpenMeteoResponse, location: WeatherLocation, units: WeatherUnits, fetchedAt: Date = Date()) throws -> WeatherReport {
         let timeZone = TimeZone(identifier: response.timezone)
             ?? TimeZone(secondsFromGMT: response.utcOffsetSeconds)
             ?? .current
@@ -104,7 +104,7 @@ enum WeatherReportBuilder {
             return HourlyForecast(
                 date: hourlyTimes[index],
                 temperature: temperature,
-                weatherCode: value(response.hourly.weatherCode, at: index) ?? 3,
+                weatherCode: WeatherCondition.normalized(value(response.hourly.weatherCode, at: index) ?? 3, celsius: units.celsius(temperature)),
                 precipitationProbability: value(response.hourly.precipitationProbability, at: index),
                 precipitationAmount: value(response.hourly.precipitation ?? [], at: index),
                 isDay: (value(response.hourly.isDay, at: index) ?? 1) == 1
@@ -139,7 +139,7 @@ enum WeatherReportBuilder {
             return DailyForecast(
                 date: dayStart,
                 endDate: dayEnd,
-                weatherCode: value(response.daily.weatherCode, at: index) ?? 3,
+                weatherCode: WeatherCondition.normalized(value(response.daily.weatherCode, at: index) ?? 3, celsius: units.celsius(low)),
                 high: high,
                 low: low,
                 sunrise: sunrise,
@@ -161,7 +161,7 @@ enum WeatherReportBuilder {
             temperature: response.current.temperature2m,
             apparentTemperature: response.current.apparentTemperature,
             humidity: response.current.relativeHumidity2m,
-            weatherCode: response.current.weatherCode,
+            weatherCode: WeatherCondition.normalized(response.current.weatherCode, celsius: units.celsius(response.current.temperature2m)),
             isDay: response.current.isDay == 1,
             windSpeed: response.current.windSpeed10m,
             windDirection: response.current.windDirection10m,

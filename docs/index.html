@@ -445,7 +445,7 @@
 <script>
 (function () {
   'use strict';
-  const VERSION = '2026-11-18.2';
+  const VERSION = '2026-11-18.3';
 
   // Surface any script failure on screen instead of leaving a silent spinner.
   function showFailure(prefix, detail) {
@@ -510,6 +510,13 @@
     80: ['Light Showers', '🌦️'], 81: ['Showers', '🌧️'], 82: ['Heavy Showers', '🌧️'], 85: ['Snow Showers', '🌨️'], 86: ['Heavy Snow Showers', '❄️'],
     95: ['Thunderstorms', '⛈️'], 96: ['Thunderstorms with Hail', '⛈️'], 99: ['Thunderstorms with Hail', '⛈️']
   };
+  // Open-Meteo sometimes reports snow or freezing codes when the model blend carries a trace of
+  // frozen precipitation, even at temperatures in the 50s. Above 3 °C that is rain, so remap it.
+  const SNOW_TO_RAIN = { 71: 61, 73: 63, 75: 65, 77: 61, 85: 80, 86: 82, 56: 51, 57: 55, 66: 61, 67: 65 };
+  function normalizeCode(code, celsius) {
+    if (celsius != null && celsius > 3 && SNOW_TO_RAIN[code] != null) return SNOW_TO_RAIN[code];
+    return code;
+  }
   function conditionText(code) { return (CONDITIONS[code] || CONDITIONS[3])[0]; }
   function conditionIcon(code, isDay) {
     const c = CONDITIONS[code] || CONDITIONS[3];
@@ -605,7 +612,8 @@
     const h = r.hourly, d = r.daily;
     const at = (arr, i) => (arr && i < arr.length) ? arr[i] : null;
     const hourly = h.time.map((t, i) => ({
-      time: t, temperature: at(h.temperature_2m, i), code: at(h.weather_code, i) ?? 3,
+      time: t, temperature: at(h.temperature_2m, i),
+      code: normalizeCode(at(h.weather_code, i) ?? 3, at(h.temperature_2m, i) != null ? units.celsius(at(h.temperature_2m, i)) : null),
       pop: at(h.precipitation_probability, i), amount: at(h.precipitation, i), isDay: (at(h.is_day, i) ?? 1) === 1
     })).filter(x => x.temperature != null);
     const samples = h.time.map((t, i) => ({ start: t, probability: at(h.precipitation_probability, i) }));
@@ -614,8 +622,9 @@
       const sunrise = at(d.sunrise, i), sunset = at(d.sunset, i);
       const allDay = rangeMax(samples, start, end) ?? at(d.precipitation_probability_max, i);
       const daytime = (sunrise != null && sunset != null) ? daytimeMax(samples, sunrise, sunset) : allDay;
+      const low = at(d.temperature_2m_min, i);
       return {
-        time: t, end, code: at(d.weather_code, i) ?? 3, high: at(d.temperature_2m_max, i), low: at(d.temperature_2m_min, i),
+        time: t, end, code: normalizeCode(at(d.weather_code, i) ?? 3, low != null ? units.celsius(low) : null), high: at(d.temperature_2m_max, i), low,
         sunrise, sunset, uvMax: at(d.uv_index_max, i), daytimePop: daytime, allDayPop: allDay, precipSum: at(d.precipitation_sum, i)
       };
     }).filter(x => x.high != null && x.low != null);
@@ -623,7 +632,7 @@
     let idx = 0; for (let i = 0; i < h.time.length; i++) if (h.time[i] <= c.time) idx = i;
     const current = {
       time: c.time, temperature: c.temperature_2m, feelsLike: c.apparent_temperature, humidity: c.relative_humidity_2m,
-      code: c.weather_code, isDay: c.is_day === 1, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, gusts: c.wind_gusts_10m,
+      code: normalizeCode(c.weather_code, units.celsius(c.temperature_2m)), isDay: c.is_day === 1, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, gusts: c.wind_gusts_10m,
       pressure: c.surface_pressure, visibility: at(h.visibility, idx), dewPoint: at(h.dew_point_2m, idx), uv: at(h.uv_index, idx)
     };
     const todayKey = dayKey(c.time, tz);
@@ -1143,7 +1152,7 @@
   $('version').textContent = 'Version ' + VERSION;
 
   // Exposed for tests.
-  window.WeatherLogic = { daytimeMax, rangeMax, buildReport };
+  window.WeatherLogic = { daytimeMax, rangeMax, buildReport, normalizeCode };
 
   load();
 })();

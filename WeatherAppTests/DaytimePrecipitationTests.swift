@@ -132,7 +132,7 @@ struct WeatherReportBuilderTests {
     private let location = WeatherLocation(name: "San Francisco", region: "California", latitude: 37.77, longitude: -122.42, isCurrentLocation: false)
 
     @Test func dailyRowUsesDaytimeMaximum() throws {
-        let report = try WeatherReportBuilder.makeReport(from: response(), location: location)
+        let report = try WeatherReportBuilder.makeReport(from: response(), location: location, units: .imperial)
 
         let today = try #require(report.daily.first)
         #expect(today.daytimePrecipitationProbability == 15)
@@ -140,8 +140,16 @@ struct WeatherReportBuilderTests {
         #expect(report.timeZone.identifier == "America/Los_Angeles")
     }
 
+    @Test func warmSnowCodesBecomeRain() {
+        #expect(WeatherCondition.normalized(75, celsius: 12) == 65)
+        #expect(WeatherCondition.normalized(86, celsius: 9) == 82)
+        #expect(WeatherCondition.normalized(75, celsius: -2) == 75)
+        #expect(WeatherCondition.normalized(63, celsius: 12) == 63)
+        #expect(WeatherCondition.normalized(75, celsius: nil) == 75)
+    }
+
     @Test func currentConditionsPickUpHourlyExtras() throws {
-        let report = try WeatherReportBuilder.makeReport(from: response(), location: location)
+        let report = try WeatherReportBuilder.makeReport(from: response(), location: location, units: .imperial)
 
         #expect(report.current.visibility == 16093.0)
         #expect(report.current.dewPoint == 45.0)
