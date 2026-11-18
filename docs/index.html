@@ -382,7 +382,8 @@
 
     <footer class="attribution">
       Forecast by <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. Station data by NOAA.<br>
-      Daily chance of precipitation is the highest hourly value between sunrise and sunset. Tap a day for the hourly breakdown.
+      Daily chance of precipitation is the highest hourly value between sunrise and sunset. Tap a day for the hourly breakdown.<br>
+      <span id="version"></span>
     </footer>
   </div>
 </main>
@@ -444,6 +445,22 @@
 <script>
 (function () {
   'use strict';
+  const VERSION = '2026-11-18.2';
+
+  // Surface any script failure on screen instead of leaving a silent spinner.
+  function showFailure(prefix, detail) {
+    try {
+      const s = document.getElementById('status');
+      if (!s || s.hidden) return;
+      const p = document.createElement('p');
+      p.className = 'slow';
+      p.style.color = '#ffd2d2';
+      p.textContent = prefix + ': ' + detail;
+      s.appendChild(p);
+    } catch (e) { /* nothing more to do */ }
+  }
+  window.addEventListener('error', e => showFailure('Script error', (e.message || 'unknown') + (e.lineno ? ' (line ' + e.lineno + ')' : '')));
+  window.addEventListener('unhandledrejection', e => showFailure('Unhandled error', (e.reason && e.reason.message) || String(e.reason)));
 
   // ---------- Storage ----------
   const store = {
@@ -695,8 +712,9 @@
     s.querySelectorAll('[data-action="choose"]').forEach(b => b.addEventListener('click', openSheet));
   }
   let slowTimer = null;
+  function step(text) { const n = $('step-note'); if (n) n.textContent = text; }
   function showLoading(text) {
-    showStatus('<div class="spinner" role="status" aria-label="Loading"></div><p>' + text + '</p><p id="slow-note" class="slow" hidden></p>');
+    showStatus('<div class="spinner" role="status" aria-label="Loading"></div><p>' + text + '</p><p id="step-note" class="slow"></p><p id="slow-note" class="slow" hidden></p><p class="slow" style="opacity:0.6">Version ' + VERSION + '</p>');
     clearTimeout(slowTimer);
     slowTimer = setTimeout(() => {
       const note = $('slow-note');
@@ -728,9 +746,12 @@
     if (!report) showLoading(selected ? 'Loading ' + escapeHTML(selected.name) : 'Finding your weather');
     $('bar-sub').textContent = 'Updating…';
     try {
+      step(selected ? 'Using saved location…' : 'Asking for your location…');
       const location = await resolveLocation();
+      step('Requesting forecast from api.open-meteo.com…');
       const r = await fetchReport(location);
       if (token !== loadToken) return;
+      step('Forecast received, rendering…');
       report = r;
       clearTimeout(slowTimer);
       render(r);
@@ -1118,6 +1139,8 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && report && Date.now() - report.fetchedAt > 10 * 60 * 1000) load();
   });
+
+  $('version').textContent = 'Version ' + VERSION;
 
   // Exposed for tests.
   window.WeatherLogic = { daytimeMax, rangeMax, buildReport };
